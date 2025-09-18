@@ -1033,6 +1033,77 @@ P.S. Список составлялся на основе данных, пре�
     }
   ];
 
+  return (
+    <div className="p-6 space-y-6">
+      <div>
+        <h1 className="text-3xl font-bold text-gray-900">Скрипты для менеджеров</h1>
+        <p className="text-gray-600 mt-1">
+          Готовые шаблоны сообщений для работы с клиентами
+        </p>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Выберите тип проекта</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Button
+              onClick={() => setSelectedScript('collective9')}
+              variant={selectedScript === 'collective9' ? 'primary' : 'outline'}
+              className="h-20 text-left flex-col items-start justify-center"
+            >
+              <span className="font-semibold">Коллективный 9</span>
+              <span className="text-sm opacity-75">Скрипты для коллективных проектов</span>
+            </Button>
+            <Button
+              onClick={() => setSelectedScript('individual')}
+              variant={selectedScript === 'individual' ? 'primary' : 'outline'}
+              className="h-20 text-left flex-col items-start justify-center"
+            >
+              <span className="font-semibold">Индивидуальный</span>
+              <span className="text-sm opacity-75">Скрипты для индивидуальных проектов</span>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {selectedScript && (
+        <Card>
+          <CardHeader>
+            <CardTitle>
+              {selectedScript === 'collective9' ? 'Коллективный 9' : 'Индивидуальный'} - Скрипты
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {getScriptSections().map((section, index) => (
+                <div key={index} className="border rounded-lg p-4">
+                  <h3 className="font-semibold text-lg mb-2">{section.title}</h3>
+                  <div className="bg-gray-50 p-4 rounded border">
+                    <pre className="whitespace-pre-wrap text-sm font-mono">
+                      {section.content}
+                    </pre>
+                  </div>
+                  <div className="mt-2 flex justify-end">
+                    <Button
+                      size="sm"
+                      onClick={() => copyToClipboard(section.content)}
+                      variant="outline"
+                    >
+                      Копировать
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
   const categories = [
     { id: 'all', label: 'Все типы', icon: FileText },
     { id: 'kindergarten', label: 'Детский сад', icon: Baby },
