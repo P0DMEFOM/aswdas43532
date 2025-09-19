@@ -10,7 +10,7 @@ import { AddEmployee } from './components/admin/AddEmployee';
 import { EmployeesList } from './components/admin/EmployeesList';
 import { SalaryManagement } from './components/admin/SalaryManagement';
 import { Calendar } from './components/calendar/Calendar';
-import { Script } from './components/script/Script';
+import Script from './components/script/Script';
 import { Reports } from './components/reports/Reports';
 import { ProjectDetail } from './components/projects/ProjectDetail';
 import { Messenger } from './components/messenger/Messenger';
