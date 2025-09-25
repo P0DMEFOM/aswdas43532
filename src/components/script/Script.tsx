@@ -8,7 +8,7 @@ const Script: React.FC = () => {
   const categories = [
     { id: 'collective9' as const, label: 'КОЛЛЕКТИВНЫЙ 9', icon: Users },
     { id: 'individual' as const, label: 'ИНДИВИДУАЛЬНЫЙ', icon: User },
-    { id: 'kindergarten' as const, label: 'ДЕТСКИЙ САД', icon: Baby }
+    { id: 'kindergarten' as const, label: 'ДЕТСКИЙ САД', icon: Baby },
     { id: 'kindergarten' as const, label: 'КОЛЛЕКТИВНЫЙ 11', icon: Baby }
   ];
 
