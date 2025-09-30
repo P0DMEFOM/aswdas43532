@@ -9,3 +9,5 @@ if ((!import.meta.env.VITE_SUPABASE_URL || !import.meta.env.VITE_SUPABASE_ANON_K
     (supabaseUrl === 'https://placeholder.supabase.co' || supabaseAnonKey === 'placeholder-key')) {
   console.warn('Supabase environment variables not configured. Using placeholder values.');
 }
+
+export const supabase = createClient<Database>(supabaseUrl, supabaseAnonKey);
