@@ -9,7 +9,9 @@ export interface User {
   position?: string;
   salary?: number;
   avatar?: string;
-  createdAt: Date;
+  createdAt?: Date;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface Project {

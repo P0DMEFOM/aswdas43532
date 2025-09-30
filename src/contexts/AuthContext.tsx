@@ -1,30 +1,17 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, ReactNode } from 'react';
+import { useSupabaseAuth, Profile } from '../hooks/useSupabaseAuth';
+import { supabase } from '../lib/supabase';
 import { Project, ProjectFile } from '../types/user';
 
-interface User {
-  id: string;
-  email: string;
-  name: string;
-  role: 'photographer' | 'designer' | 'admin';
-  department?: string;
-  position?: string;
-  salary?: number;
-  phone?: string;
-  telegram?: string;
-  avatar?: string;
-  createdAt: Date;
-  password?: string;
-}
-
 interface AuthContextType {
-  user: User | null;
-  users: User[];
+  user: Profile | null;
+  users: Profile[];
   projects: Project[];
   login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
-  register: (userData: Omit<User, 'id'> & { password: string }) => Promise<boolean>;
-  addUser: (userData: Omit<User, 'id'> & { password: string }) => Promise<void>;
-  updateUser: (id: string, userData: Partial<User>) => Promise<void>;
+  register: (userData: Omit<Profile, 'id' | 'created_at' | 'updated_at'> & { password: string }) => Promise<boolean>;
+  addUser: (userData: Omit<Profile, 'id' | 'created_at' | 'updated_at'> & { password: string }) => Promise<void>;
+  updateUser: (id: string, userData: Partial<Profile>) => Promise<void>;
   deleteUser: (id: string) => Promise<void>;
   addProject: (projectData: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
   updateProject: (id: string, projectData: Partial<Project>) => Promise<void>;
@@ -37,296 +24,289 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Простая система аутентификации без базы данных
-const ADMIN_CREDENTIALS = {
-  email: 'admin',
-  password: 'admin'
-};
-
-// Тестовые данные
-const mockUsers: User[] = [
-  {
-    id: '1',
-    email: 'admin@photoalbums.com',
-    name: 'Администратор',
-    role: 'admin',
-    department: 'Управление',
-    position: 'Главный менеджер',
-    salary: 80000,
-    phone: '+7 (495) 123-45-67',
-    telegram: '@admin',
-    createdAt: new Date('2024-01-01')
-  },
-  {
-    id: '2',
-    email: 'anna.ivanova@photoalbums.com',
-    name: 'Анна Иванова',
-    role: 'photographer',
-    department: 'Фотостудия',
-    position: 'Старший фотограф',
-    salary: 60000,
-    phone: '+7 (495) 123-45-68',
-    telegram: '@anna_photo',
-    createdAt: new Date('2024-01-15')
-  },
-  {
-    id: '3',
-    email: 'elena.sidorova@photoalbums.com',
-    name: 'Елена Сидорова',
-    role: 'designer',
-    department: 'Дизайн',
-    position: 'Ведущий дизайнер',
-    salary: 55000,
-    phone: '+7 (495) 123-45-69',
-    telegram: '@elena_design',
-    createdAt: new Date('2024-01-20')
-  },
-  {
-    id: '4',
-    email: 'mikhail.petrov@photoalbums.com',
-    name: 'Михаил Петров',
-    role: 'photographer',
-    department: 'Фотостудия',
-    position: 'Фотограф',
-    salary: 45000,
-    phone: '+7 (495) 123-45-70',
-    telegram: '@mikhail_photo',
-    createdAt: new Date('2024-02-01')
-  }
-];
-
-const mockProjects: Project[] = [
-  {
-    id: '1',
-    title: 'Свадебный альбом Анны и Михаила',
-    albumType: 'Свадебный альбом',
-    description: 'Создание премиального свадебного альбома с фотосессией в парке и студии',
-    status: 'in-progress',
-    manager: mockUsers[0],
-    photographers: [mockUsers[1]],
-    designers: [mockUsers[2]],
-    deadline: new Date('2024-03-15'),
-    createdAt: new Date('2024-02-01'),
-    updatedAt: new Date('2024-02-10'),
-    photosCount: 0,
-    designsCount: 0,
-    files: []
-  },
-  {
-    id: '2',
-    title: 'Выпускной альбом 11-А класса',
-    albumType: 'Выпускной альбом',
-    description: 'Групповые и индивидуальные фотографии выпускников с торжественной церемонии',
-    status: 'planning',
-    manager: mockUsers[0],
-    photographers: [mockUsers[3]],
-    designers: [mockUsers[2]],
-    deadline: new Date('2024-06-01'),
-    createdAt: new Date('2024-02-05'),
-    updatedAt: new Date('2024-02-05'),
-    photosCount: 0,
-    designsCount: 0,
-    files: []
-  }
-];
-
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(null);
-  const [users, setUsers] = useState<User[]>(mockUsers);
-  const [projects, setProjects] = useState<Project[]>(mockProjects);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    // Проверяем сохраненную сессию
-    const savedUser = localStorage.getItem('currentUser');
-    if (savedUser) {
-      try {
-        setUser(JSON.parse(savedUser));
-      } catch (error) {
-        localStorage.removeItem('currentUser');
-      }
-    }
-    
-    // Загружаем сохраненных пользователей
-    const savedUsers = localStorage.getItem('users');
-    if (savedUsers) {
-      try {
-        const parsedUsers = JSON.parse(savedUsers);
-        // Преобразуем строки дат обратно в объекты Date
-        const usersWithDates = parsedUsers.map((user: any) => ({
-          ...user,
-          createdAt: new Date(user.createdAt)
-        }));
-        setUsers(usersWithDates);
-      } catch (error) {
-        localStorage.removeItem('users');
-      }
-    }
-    
-    // Загружаем сохраненные проекты
-    const savedProjects = localStorage.getItem('projects');
-    if (savedProjects) {
-      try {
-        const parsedProjects = JSON.parse(savedProjects);
-        // Преобразуем строки дат обратно в объекты Date
-        const projectsWithDates = parsedProjects.map((project: any) => ({
-          ...project,
-          createdAt: new Date(project.createdAt),
-          updatedAt: new Date(project.updatedAt),
-          deadline: new Date(project.deadline),
-          files: project.files.map((file: any) => ({
-            ...file,
-            uploadedAt: new Date(file.uploadedAt)
-          }))
-        }));
-        setProjects(projectsWithDates);
-      } catch (error) {
-        console.error('Ошибка при загрузке проектов:', error);
-        localStorage.removeItem('projects');
-      }
-    }
-    
-    setLoading(false);
-  }, []);
-
-  // Сохраняем проекты в localStorage при изменении
-  useEffect(() => {
-    if (projects.length > 0) {
-      localStorage.setItem('projects', JSON.stringify(projects));
-    }
-  }, [projects]);
+  const { user: supabaseUser, profile, loading, signIn, signOut, signUp } = useSupabaseAuth();
+  const [users, setUsers] = useState<Profile[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
-      console.log('=== ПОПЫТКА ВХОДА ===');
-      console.log('Введенный email:', email);
-      console.log('Введенный пароль:', password);
-      console.log('Всего пользователей в системе:', users.length);
-      
-      // Показываем всех пользователей с их данными для входа
-      console.log('Список всех пользователей:');
-      users.forEach((u, index) => {
-        console.log(`${index + 1}. Имя: ${u.name}`);
-        console.log(`   Email: "${u.email}"`);
-        console.log(`   Пароль: "${u.password || 'НЕТ ПАРОЛЯ'}"`);
-        console.log(`   Роль: ${u.role}`);
-        console.log('   ---');
-      });
-
-      // Проверяем админа
-      if (email === ADMIN_CREDENTIALS.email && password === ADMIN_CREDENTIALS.password) {
-        console.log('✅ Вход как админ');
-        const adminUser = users.find(u => u.role === 'admin') || users[0];
-        setUser(adminUser);
-        localStorage.setItem('currentUser', JSON.stringify(adminUser));
-        return true;
-      }
-      
-      // Проверяем созданных пользователей
-      console.log('Ищем пользователя среди созданных...');
-      const foundUser = users.find(u => u.email === email && u.password === password);
-      
-      if (foundUser) {
-        console.log('✅ Пользователь найден:', foundUser.name);
-        setUser(foundUser);
-        localStorage.setItem('currentUser', JSON.stringify(foundUser));
-        return true;
-      } else {
-        console.log('❌ Пользователь не найден');
-        console.log('Проверяем точные совпадения:');
-        users.forEach(u => {
-          const emailMatch = u.email === email;
-          const passwordMatch = u.password === password;
-          console.log(`Пользователь ${u.name}:`);
-          console.log(`  Email совпадает: ${emailMatch} ("${u.email}" === "${email}")`);
-          console.log(`  Пароль совпадает: ${passwordMatch} ("${u.password}" === "${password}")`);
-        });
-      }
-      
-      return false;
+      await signIn(email, password);
+      return true;
     } catch (error) {
-      console.error('Ошибка при входе:', error);
+      console.error('Login error:', error);
       return false;
     }
   };
 
   const logout = async () => {
-    setUser(null);
-    localStorage.removeItem('currentUser');
+    await signOut();
   };
 
-  const register = async (userData: Omit<User, 'id'> & { password: string }): Promise<boolean> => {
+  const register = async (userData: Omit<Profile, 'id' | 'created_at' | 'updated_at'> & { password: string }): Promise<boolean> => {
     try {
-      const newUser: User = {
-        ...userData,
-        id: Math.random().toString(36).substr(2, 9),
-        createdAt: new Date()
-      };
-      setUsers(prev => [...prev, newUser]);
+      await signUp(userData.email, userData.password, {
+        name: userData.name,
+        role: userData.role,
+        department: userData.department || undefined,
+        position: userData.position || undefined,
+        salary: userData.salary || undefined,
+        phone: userData.phone || undefined,
+        telegram: userData.telegram || undefined,
+      });
       return true;
     } catch (error) {
-      console.error('Registration error:', error);
+      console.error('Register error:', error);
       return false;
     }
   };
 
-  const addUser = async (userData: Omit<User, 'id'> & { password: string }): Promise<void> => {
-    const newUser: User = {
-      id: Math.random().toString(36).substr(2, 9),
+  const addUser = async (userData: Omit<Profile, 'id' | 'created_at' | 'updated_at'> & { password: string }): Promise<void> => {
+    await signUp(userData.email, userData.password, {
       name: userData.name,
-      email: userData.email,
       role: userData.role,
-      department: userData.department,
-      position: userData.position,
-      salary: userData.salary,
-      phone: userData.phone,
-      telegram: userData.telegram,
-      avatar: userData.avatar,
-      password: userData.password,
-      createdAt: new Date()
-    };
-    
-    console.log('=== СОЗДАНИЕ НОВОГО ПОЛЬЗОВАТЕЛЯ ===');
-    console.log('Имя:', newUser.name);
-    console.log('Email для входа:', newUser.email);
-    console.log('Пароль для входа:', newUser.password);
-    console.log('Роль:', newUser.role);
-    console.log('ID:', newUser.id);
-    
-    setUsers(prev => [...prev, newUser]);
-    
-    // Сохраняем пользователей в localStorage для постоянства
-    const updatedUsers = [...users, newUser];
-    localStorage.setItem('users', JSON.stringify(updatedUsers));
-    
-    console.log('✅ Пользователь сохранен в localStorage');
-    console.log('Общее количество пользователей:', updatedUsers.length);
+      department: userData.department || undefined,
+      position: userData.position || undefined,
+      salary: userData.salary || undefined,
+      phone: userData.phone || undefined,
+      telegram: userData.telegram || undefined,
+    });
+    await fetchUsers();
   };
 
-  const updateUser = async (id: string, userData: Partial<User>): Promise<void> => {
-    const updatedUsers = users.map(u => u.id === id ? { ...u, ...userData } : u);
-    setUsers(updatedUsers);
-    localStorage.setItem('users', JSON.stringify(updatedUsers));
-    
-    if (user && user.id === id) {
-      const updatedUser = { ...user, ...userData };
-      setUser(updatedUser);
-      localStorage.setItem('currentUser', JSON.stringify(updatedUser));
+  const updateUser = async (id: string, userData: Partial<Profile>): Promise<void> => {
+    const { error } = await supabase
+      .from('profiles')
+      .update(userData)
+      .eq('id', id);
+
+    if (error) {
+      throw error;
     }
+    
+    await fetchUsers();
   };
 
   const deleteUser = async (id: string): Promise<void> => {
-    const updatedUsers = users.filter(u => u.id !== id);
-    setUsers(updatedUsers);
-    localStorage.setItem('users', JSON.stringify(updatedUsers));
+    const { error } = await supabase.auth.admin.deleteUser(id);
     
-    if (user && user.id === id) {
-      setUser(null);
-      localStorage.removeItem('currentUser');
+    if (error) {
+      throw error;
+    }
+    
+    await fetchUsers();
+  };
+
+  const fetchUsers = async () => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching users:', error);
+    } else {
+      setUsers(data || []);
     }
   };
 
+  const fetchProjects = async () => {
+    // This is a simplified version - in a real app you'd need to join with members
+    const { data, error } = await supabase
+      .from('projects')
+      .select(`
+        *,
+        manager:profiles!projects_manager_id_fkey(*),
+        project_members(
+          user_id,
+          role,
+          profiles(*)
+        ),
+        project_files(*)
+      `)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Error fetching projects:', error);
+    } else {
+      // Transform the data to match our Project interface
+      const transformedProjects: Project[] = (data || []).map((project: any) => ({
+        id: project.id,
+        title: project.title,
+        albumType: project.album_type,
+        description: project.description,
+        status: project.status,
+        manager: project.manager,
+        photographers: project.project_members
+          ?.filter((m: any) => m.role === 'photographer')
+          ?.map((m: any) => m.profiles) || [],
+        designers: project.project_members
+          ?.filter((m: any) => m.role === 'designer')
+          ?.map((m: any) => m.profiles) || [],
+        deadline: new Date(project.deadline),
+        createdAt: new Date(project.created_at),
+        updatedAt: new Date(project.updated_at),
+        photosCount: project.project_files?.filter((f: any) => f.file_type.startsWith('image/')).length || 0,
+        designsCount: project.project_files?.filter((f: any) => 
+          f.file_type.includes('design') || 
+          f.name.toLowerCase().includes('макет') || 
+          f.name.toLowerCase().includes('design')
+        ).length || 0,
+        files: project.project_files?.map((file: any) => ({
+          id: file.id,
+          name: file.name,
+          type: file.file_type,
+          size: file.file_size,
+          preview: file.preview_url,
+          uploadedBy: users.find(u => u.id === file.uploaded_by) || { name: 'Unknown' },
+          uploadedAt: new Date(file.uploaded_at)
+        })) || []
+      }));
+      
+      setProjects(transformedProjects);
+    }
+  };
+
+  // Fetch data when user changes
+  React.useEffect(() => {
+    if (profile) {
+      fetchUsers();
+      fetchProjects();
+    }
+  }, [profile]);
+
   const addProject = async (projectData: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>): Promise<void> => {
+    const { data: project, error } = await supabase
+      .from('projects')
+      .insert({
+        title: projectData.title,
+        album_type: projectData.albumType,
+        description: projectData.description,
+        status: projectData.status,
+        manager_id: projectData.manager?.id,
+        deadline: projectData.deadline.toISOString().split('T')[0]
+      })
+      .select()
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    // Add project members
+    const members = [
+      ...projectData.photographers.map(p => ({ project_id: project.id, user_id: p.id, role: 'photographer' as const })),
+      ...projectData.designers.map(d => ({ project_id: project.id, user_id: d.id, role: 'designer' as const }))
+    ];
+
+    if (members.length > 0) {
+      const { error: membersError } = await supabase
+        .from('project_members')
+        .insert(members);
+
+      if (membersError) {
+        throw membersError;
+      }
+    }
+
+    await fetchProjects();
+  };
+
+  const updateProject = async (id: string, projectData: Partial<Project>): Promise<void> => {
+    const updateData: any = {};
+    
+    if (projectData.title) updateData.title = projectData.title;
+    if (projectData.albumType) updateData.album_type = projectData.albumType;
+    if (projectData.description !== undefined) updateData.description = projectData.description;
+    if (projectData.status) updateData.status = projectData.status;
+    if (projectData.manager) updateData.manager_id = projectData.manager.id;
+    if (projectData.deadline) updateData.deadline = projectData.deadline.toISOString().split('T')[0];
+
+    const { error } = await supabase
+      .from('projects')
+      .update(updateData)
+      .eq('id', id);
+
+    if (error) {
+      throw error;
+    }
+
+    // Update project members if provided
+    if (projectData.photographers || projectData.designers) {
+      // Remove existing members
+      await supabase
+        .from('project_members')
+        .delete()
+        .eq('project_id', id);
+
+      // Add new members
+      const members = [
+        ...(projectData.photographers || []).map(p => ({ project_id: id, user_id: p.id, role: 'photographer' as const })),
+        ...(projectData.designers || []).map(d => ({ project_id: id, user_id: d.id, role: 'designer' as const }))
+      ];
+
+      if (members.length > 0) {
+        const { error: membersError } = await supabase
+          .from('project_members')
+          .insert(members);
+
+        if (membersError) {
+          throw membersError;
+        }
+      }
+    }
+
+    await fetchProjects();
+  };
+
+  const deleteProject = async (id: string): Promise<void> => {
+    const { error } = await supabase
+      .from('projects')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      throw error;
+    }
+
+    await fetchProjects();
+  };
+
+  const addFileToProject = async (projectId: string, fileData: Omit<ProjectFile, 'id' | 'uploadedAt'>): Promise<void> => {
+    const { error } = await supabase
+      .from('project_files')
+      .insert({
+        project_id: projectId,
+        name: fileData.name,
+        file_type: fileData.type,
+        file_size: fileData.size,
+        preview_url: fileData.preview,
+        file_url: fileData.preview || '#', // In a real app, you'd upload to storage
+        uploaded_by: profile?.id
+      });
+
+    if (error) {
+      throw error;
+    }
+
+    await fetchProjects();
+  };
+
+  const removeFileFromProject = async (projectId: string, fileId: string): Promise<void> => {
+    const { error } = await supabase
+      .from('project_files')
+      .delete()
+      .eq('id', fileId);
+
+    if (error) {
+      throw error;
+    }
+
+    await fetchProjects();
+  };
+
+  // Legacy methods for backward compatibility
+  const legacyAddProject = async (projectData: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>): Promise<void> => {
     const newProject: Project = {
       ...projectData,
       id: Math.random().toString(36).substr(2, 9),
@@ -343,7 +323,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     });
   };
 
-  const updateProject = async (id: string, projectData: Partial<Project>): Promise<void> => {
+  const legacyUpdateProject = async (id: string, projectData: Partial<Project>): Promise<void> => {
     setProjects(prev => {
       const updatedProjects = prev.map(p => 
         p.id === id 
@@ -361,7 +341,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     });
   };
 
-  const deleteProject = async (id: string): Promise<void> => {
+  const legacyDeleteProject = async (id: string): Promise<void> => {
     setProjects(prev => {
       const updatedProjects = prev.filter(p => p.id !== id);
       localStorage.setItem('projects', JSON.stringify(updatedProjects));
@@ -369,7 +349,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     });
   };
 
-  const addFileToProject = async (projectId: string, fileData: Omit<ProjectFile, 'id' | 'uploadedAt'>): Promise<void> => {
+  const legacyAddFileToProject = async (projectId: string, fileData: Omit<ProjectFile, 'id' | 'uploadedAt'>): Promise<void> => {
     const newFile: ProjectFile = {
       ...fileData,
       id: Math.random().toString(36).substr(2, 9),
@@ -395,7 +375,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     });
   };
 
-  const removeFileFromProject = async (projectId: string, fileId: string): Promise<void> => {
+  const legacyRemoveFileFromProject = async (projectId: string, fileId: string): Promise<void> => {
     setProjects(prev => {
       const updatedProjects = prev.map(p => {
         if (p.id === projectId) {
@@ -416,7 +396,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const value: AuthContextType = {
-    user,
+    user: profile,
     users,
     projects,
     login,
@@ -425,12 +405,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     addUser,
     updateUser,
     deleteUser,
-    addProject,
-    updateProject,
-    deleteProject,
-    addFileToProject,
-    removeFileFromProject,
-    isAuthenticated: !!user,
+    addProject: profile ? addProject : legacyAddProject,
+    updateProject: profile ? updateProject : legacyUpdateProject,
+    deleteProject: profile ? deleteProject : legacyDeleteProject,
+    addFileToProject: profile ? addFileToProject : legacyAddFileToProject,
+    removeFileFromProject: profile ? removeFileFromProject : legacyRemoveFileFromProject,
+    isAuthenticated: !!profile,
     loading
   };
 
