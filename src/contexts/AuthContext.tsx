@@ -1,4 +1,4 @@
-import React, { createContext, useContext, ReactNode } from 'react';
+import React, { createContext, useContext, ReactNode, useState, useEffect } from 'react';
 import { useSupabaseAuth, Profile } from '../hooks/useSupabaseAuth';
 import { supabase } from '../lib/supabase';
 import { Project, ProjectFile } from '../types/user';
