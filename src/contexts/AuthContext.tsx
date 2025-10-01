@@ -31,54 +31,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
-      // Fallback demo login for testing
-      if (email === 'admin@demo.com' && password === 'admin123') {
-        const demoProfile: Profile = {
-          id: 'demo-admin-id',
-          email: 'admin@demo.com',
-          name: 'Demo Admin',
-          role: 'admin',
-          department: 'Management',
-          position: 'System Administrator',
-          salary: 100000,
-          phone: '+1234567890',
-          telegram: '@demoadmin',
-          avatar: null,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        };
-        
-        // Set demo profile directly
-        setProfile(demoProfile);
-        return true;
-      }
-      
       await signIn(email, password);
       return true;
     } catch (error) {
       console.error('Login error:', error);
-      
-      // If Supabase login fails, try demo fallback
-      if (email === 'admin@demo.com' && password === 'admin123') {
-        const demoProfile: Profile = {
-          id: 'demo-admin-id',
-          email: 'admin@demo.com',
-          name: 'Demo Admin',
-          role: 'admin',
-          department: 'Management',
-          position: 'System Administrator',
-          salary: 100000,
-          phone: '+1234567890',
-          telegram: '@demoadmin',
-          avatar: null,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        };
-        
-        setProfile(demoProfile);
-        return true;
-      }
-      
       return false;
     }
   };
