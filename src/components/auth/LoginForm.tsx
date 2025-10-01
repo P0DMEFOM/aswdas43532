@@ -45,6 +45,11 @@ export function LoginForm() {
 
         <Card>
           <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
+              <strong>Demo доступ:</strong><br />
+              Email: admin@demo.com<br />
+              Пароль: admin123
+            </div>
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">

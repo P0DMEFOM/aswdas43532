@@ -21,8 +21,15 @@ export function useSupabaseAuth() {
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isDemo, setIsDemo] = useState(false);
 
   useEffect(() => {
+    // Skip Supabase initialization if in demo mode
+    if (isDemo) {
+      setLoading(false);
+      return;
+    }
+    
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
@@ -70,6 +77,12 @@ export function useSupabaseAuth() {
   };
 
   const signIn = async (email: string, password: string) => {
+    // Handle demo login
+    if (email === 'admin@demo.com' && password === 'admin123') {
+      setIsDemo(true);
+      return { user: null, session: null };
+    }
+    
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -107,6 +120,12 @@ export function useSupabaseAuth() {
   };
 
   const signOut = async () => {
+    if (isDemo) {
+      setIsDemo(false);
+      setProfile(null);
+      return;
+    }
+    
     const { error } = await supabase.auth.signOut();
     if (error) {
       throw error;
@@ -140,5 +159,6 @@ export function useSupabaseAuth() {
     signOut,
     updateProfile,
     isAuthenticated: !!user,
+    setProfile,
   };
 }
