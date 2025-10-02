@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Users, Search, Filter, Edit, Trash2, Mail, X, Eye, EyeOff, MessageCircle, Phone, Upload } from 'lucide-react';
+import { Users, Search, Filter, CreditCard as Edit, Trash2, Mail, X, Eye, EyeOff, MessageCircle, Phone, Upload } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Card, CardContent } from '../ui/Card';
 import { useAuth } from '../../contexts/AuthContext';
