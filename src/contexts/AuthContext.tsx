@@ -106,7 +106,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (error) {
       console.error('Error fetching users:', error);
     } else {
-      setUsers(data || []);
+      const transformedUsers = (data || []).map((user: any) => ({
+        ...user,
+        createdAt: new Date(user.created_at),
+        updatedAt: new Date(user.updated_at)
+      }));
+      setUsers(transformedUsers);
     }
   };
 
