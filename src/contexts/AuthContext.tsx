@@ -20,6 +20,7 @@ interface AuthContextType {
   removeFileFromProject: (projectId: string, fileId: string) => Promise<void>;
   isAuthenticated: boolean;
   loading: boolean;
+  dataLoading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -28,6 +29,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const { user: supabaseUser, profile, loading, signIn, signOut, signUp } = useSupabaseAuth();
   const [users, setUsers] = useState<Profile[]>([]);
   const [projects, setProjects] = useState<Project[]>([]);
+  const [dataLoading, setDataLoading] = useState(false);
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
@@ -98,85 +100,102 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const fetchUsers = async () => {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .order('created_at', { ascending: false });
+    try {
+      console.log('Fetching users...');
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-    if (error) {
-      console.error('Error fetching users:', error);
-    } else {
-      const transformedUsers = (data || []).map((user: any) => ({
-        ...user,
-        createdAt: new Date(user.created_at),
-        updatedAt: new Date(user.updated_at)
-      }));
-      setUsers(transformedUsers);
+      if (error) {
+        console.error('Error fetching users:', error);
+        setUsers([]);
+      } else {
+        console.log('Users fetched:', data);
+        const transformedUsers = (data || []).map((user: any) => ({
+          ...user,
+          createdAt: new Date(user.created_at),
+          updatedAt: new Date(user.updated_at)
+        }));
+        setUsers(transformedUsers);
+      }
+    } catch (err) {
+      console.error('Exception fetching users:', err);
+      setUsers([]);
     }
   };
 
   const fetchProjects = async () => {
-    // This is a simplified version - in a real app you'd need to join with members
-    const { data, error } = await supabase
-      .from('projects')
-      .select(`
-        *,
-        manager:profiles!projects_manager_id_fkey(*),
-        project_members(
-          user_id,
-          role,
-          profiles(*)
-        ),
-        project_files(*)
-      `)
-      .order('created_at', { ascending: false });
+    try {
+      console.log('Fetching projects...');
+      // This is a simplified version - in a real app you'd need to join with members
+      const { data, error } = await supabase
+        .from('projects')
+        .select(`
+          *,
+          manager:profiles!projects_manager_id_fkey(*),
+          project_members(
+            user_id,
+            role,
+            profiles(*)
+          ),
+          project_files(*)
+        `)
+        .order('created_at', { ascending: false });
 
-    if (error) {
-      console.error('Error fetching projects:', error);
-    } else {
-      // Transform the data to match our Project interface
-      const transformedProjects: Project[] = (data || []).map((project: any) => ({
-        id: project.id,
-        title: project.title,
-        albumType: project.album_type,
-        description: project.description,
-        status: project.status,
-        manager: project.manager,
-        photographers: project.project_members
-          ?.filter((m: any) => m.role === 'photographer')
-          ?.map((m: any) => m.profiles) || [],
-        designers: project.project_members
-          ?.filter((m: any) => m.role === 'designer')
-          ?.map((m: any) => m.profiles) || [],
-        deadline: new Date(project.deadline),
-        createdAt: new Date(project.created_at),
-        updatedAt: new Date(project.updated_at),
-        photosCount: project.project_files?.filter((f: any) => f.file_type.startsWith('image/')).length || 0,
-        designsCount: project.project_files?.filter((f: any) => 
-          f.file_type.includes('design') || 
-          f.name.toLowerCase().includes('макет') || 
-          f.name.toLowerCase().includes('design')
-        ).length || 0,
-        files: project.project_files?.map((file: any) => ({
-          id: file.id,
-          name: file.name,
-          type: file.file_type,
-          size: file.file_size,
-          preview: file.preview_url,
-          uploadedBy: users.find(u => u.id === file.uploaded_by) || { name: 'Unknown' },
-          uploadedAt: new Date(file.uploaded_at)
-        })) || []
-      }));
-      
-      setProjects(transformedProjects);
+      if (error) {
+        console.error('Error fetching projects:', error);
+        setProjects([]);
+      } else {
+        console.log('Projects fetched:', data);
+        // Transform the data to match our Project interface
+        const transformedProjects: Project[] = (data || []).map((project: any) => ({
+          id: project.id,
+          title: project.title,
+          albumType: project.album_type,
+          description: project.description,
+          status: project.status,
+          manager: project.manager,
+          photographers: project.project_members
+            ?.filter((m: any) => m.role === 'photographer')
+            ?.map((m: any) => m.profiles) || [],
+          designers: project.project_members
+            ?.filter((m: any) => m.role === 'designer')
+            ?.map((m: any) => m.profiles) || [],
+          deadline: new Date(project.deadline),
+          createdAt: new Date(project.created_at),
+          updatedAt: new Date(project.updated_at),
+          photosCount: project.project_files?.filter((f: any) => f.file_type.startsWith('image/')).length || 0,
+          designsCount: project.project_files?.filter((f: any) =>
+            f.file_type.includes('design') ||
+            f.name.toLowerCase().includes('макет') ||
+            f.name.toLowerCase().includes('design')
+          ).length || 0,
+          files: project.project_files?.map((file: any) => ({
+            id: file.id,
+            name: file.name,
+            type: file.file_type,
+            size: file.file_size,
+            preview: file.preview_url,
+            uploadedBy: users.find(u => u.id === file.uploaded_by) || { name: 'Unknown' },
+            uploadedAt: new Date(file.uploaded_at)
+          })) || []
+        }));
+
+        setProjects(transformedProjects);
+      }
+    } catch (err) {
+      console.error('Exception fetching projects:', err);
+      setProjects([]);
     }
   };
 
   // Fetch data when user changes
   React.useEffect(() => {
     if (profile) {
-      fetchUsers();
-      fetchProjects();
+      setDataLoading(true);
+      Promise.all([fetchUsers(), fetchProjects()])
+        .finally(() => setDataLoading(false));
     }
   }, [profile]);
 
@@ -416,7 +435,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     addFileToProject: profile ? addFileToProject : legacyAddFileToProject,
     removeFileFromProject: profile ? removeFileFromProject : legacyRemoveFileFromProject,
     isAuthenticated: !!profile,
-    loading
+    loading,
+    dataLoading
   };
 
   return (

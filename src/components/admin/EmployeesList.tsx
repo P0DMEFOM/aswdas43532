@@ -302,12 +302,14 @@ function EditEmployeeModal({ employee, isOpen, onClose, onSave }: EditModalProps
 }
 
 export function EmployeesList() {
-  const { user, users, updateUser, deleteUser } = useAuth();
+  const { user, users, updateUser, deleteUser, dataLoading } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
   const [editingEmployee, setEditingEmployee] = useState<User | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [contactEmployee, setContactEmployee] = useState<User | null>(null);
+
+  console.log('EmployeesList render - dataLoading:', dataLoading, 'users:', users);
 
   const getRoleLabel = (role: string) => {
     const map = {
@@ -350,6 +352,19 @@ export function EmployeesList() {
     (emp.name + emp.email + (emp.department || '')).toLowerCase().includes(searchTerm.toLowerCase()) &&
     (roleFilter === 'all' || emp.role === roleFilter)
   );
+
+  if (dataLoading) {
+    return (
+      <div className="p-4 md:p-6 space-y-4 md:space-y-6">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-gray-600">Загрузка сотрудников...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <>
