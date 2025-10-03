@@ -103,8 +103,9 @@ export function AddEmployee() {
       });
       
       setTimeout(() => setSuccess(false), 3000);
-    } catch (err) {
-      setError('Ошибка при создании сотрудника');
+    } catch (err: any) {
+      console.error('Error adding employee:', err);
+      setError(err?.message || 'Ошибка при создании сотрудника');
       setLoading(false);
     }
   };

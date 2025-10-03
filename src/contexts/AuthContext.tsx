@@ -64,15 +64,49 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const addUser = async (userData: Omit<Profile, 'id' | 'created_at' | 'updated_at'> & { password: string }): Promise<void> => {
-    await signUp(userData.email, userData.password, {
-      name: userData.name,
-      role: userData.role,
-      department: userData.department || undefined,
-      position: userData.position || undefined,
-      salary: userData.salary || undefined,
-      phone: userData.phone || undefined,
-      telegram: userData.telegram || undefined,
+    // Use Admin API to create user
+    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+      email: userData.email,
+      password: userData.password,
+      email_confirm: true,
+      user_metadata: {
+        name: userData.name,
+        role: userData.role
+      }
     });
+
+    if (authError) {
+      console.error('Error creating auth user:', authError);
+      throw authError;
+    }
+
+    if (!authData.user) {
+      throw new Error('Failed to create user');
+    }
+
+    // Create profile with additional data
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .insert({
+        id: authData.user.id,
+        email: userData.email,
+        name: userData.name,
+        role: userData.role,
+        department: userData.department || null,
+        position: userData.position || null,
+        salary: userData.salary || null,
+        phone: userData.phone || null,
+        telegram: userData.telegram || null,
+        avatar: userData.avatar || null
+      });
+
+    if (profileError) {
+      console.error('Error creating profile:', profileError);
+      // Try to clean up the auth user if profile creation failed
+      await supabase.auth.admin.deleteUser(authData.user.id);
+      throw profileError;
+    }
+
     await fetchUsers();
   };
 
