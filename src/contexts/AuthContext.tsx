@@ -64,47 +64,26 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const addUser = async (userData: Omit<Profile, 'id' | 'created_at' | 'updated_at'> & { password: string }): Promise<void> => {
-    // Use Admin API to create user
-    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-      email: userData.email,
-      password: userData.password,
-      email_confirm: true,
-      user_metadata: {
-        name: userData.name,
-        role: userData.role
-      }
+    const { data: { session } } = await supabase.auth.getSession();
+
+    if (!session) {
+      throw new Error('Not authenticated');
+    }
+
+    const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-user`;
+
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${session.access_token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(userData)
     });
 
-    if (authError) {
-      console.error('Error creating auth user:', authError);
-      throw authError;
-    }
-
-    if (!authData.user) {
-      throw new Error('Failed to create user');
-    }
-
-    // Create profile with additional data
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .insert({
-        id: authData.user.id,
-        email: userData.email,
-        name: userData.name,
-        role: userData.role,
-        department: userData.department || null,
-        position: userData.position || null,
-        salary: userData.salary || null,
-        phone: userData.phone || null,
-        telegram: userData.telegram || null,
-        avatar: userData.avatar || null
-      });
-
-    if (profileError) {
-      console.error('Error creating profile:', profileError);
-      // Try to clean up the auth user if profile creation failed
-      await supabase.auth.admin.deleteUser(authData.user.id);
-      throw profileError;
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to create user');
     }
 
     await fetchUsers();
