@@ -63,15 +63,8 @@ export function AddEmployee() {
 
     setLoading(true);
     setError('');
-    
+
     try {
-      let avatarUrl = formData.avatar;
-      
-      // Если загружен новый аватар, создаем URL для него
-      if (avatarFile) {
-        avatarUrl = URL.createObjectURL(avatarFile);
-      }
-      
       await addUser({
         name: formData.name,
         email: formData.email,
@@ -82,7 +75,7 @@ export function AddEmployee() {
         department: formData.department,
         position: formData.position,
         salary: formData.salary ? parseInt(formData.salary) : undefined,
-        avatar: avatarUrl
+        avatar: avatarPreview || undefined
       });
       
       setLoading(false);

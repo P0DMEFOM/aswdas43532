@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Users, Search, Filter, CreditCard as Edit, Trash2, Mail, X, Eye, EyeOff, MessageCircle, Phone, Upload } from 'lucide-react';
+import { Users, Search, Filter, CreditCard as Edit, Trash2, Mail, X, MessageCircle, Phone, Upload } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Card, CardContent } from '../ui/Card';
 import { useAuth } from '../../contexts/AuthContext';
@@ -22,12 +22,10 @@ function EditEmployeeModal({ employee, isOpen, onClose, onSave }: EditModalProps
     department: employee.department || '',
     position: employee.position || '',
     salary: employee.salary?.toString() || '',
-    password: '',
     avatar: employee.avatar || ''
   });
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(employee.avatar || null);
-  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -61,32 +59,29 @@ function EditEmployeeModal({ employee, isOpen, onClose, onSave }: EditModalProps
     e.preventDefault();
     setLoading(true);
 
-    let avatarUrl = formData.avatar;
-    
-    // Если загружен новый аватар, создаем URL для него
-    if (avatarFile) {
-      avatarUrl = URL.createObjectURL(avatarFile);
-    }
-    const updateData: Partial<User> = {
-      name: formData.name,
-      email: formData.email,
-      phone: formData.phone,
-      telegram: formData.telegram,
-      role: formData.role,
-      department: formData.department,
-      position: formData.position,
-      salary: formData.salary ? parseInt(formData.salary) : undefined,
-      avatar: avatarUrl
-    };
+    try {
+      const updateData: Partial<User> = {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        telegram: formData.telegram,
+        role: formData.role,
+        department: formData.department,
+        position: formData.position,
+        salary: formData.salary ? parseInt(formData.salary) : undefined,
+      };
 
-    // Добавляем пароль в обновление, если он был изменен
-    if (formData.password.trim()) {
-      updateData.password = formData.password;
-    }
+      if (avatarPreview && avatarPreview !== employee.avatar) {
+        updateData.avatar = avatarPreview;
+      }
 
-    await onSave(employee.id, updateData);
-    setLoading(false);
-    onClose();
+      await onSave(employee.id, updateData);
+      onClose();
+    } catch (error: any) {
+      alert(error.message || 'Ошибка при сохранении');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
@@ -188,28 +183,6 @@ function EditEmployeeModal({ employee, isOpen, onClose, onSave }: EditModalProps
             </div>
           </div>
 
-          {/* Пароль */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Новый пароль (оставьте пустым, если не хотите менять)
-            </label>
-            <div className="relative">
-              <input
-                type={showPassword ? 'text' : 'password'}
-                name="password"
-                value={formData.password}
-                onChange={handleChange}
-                className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              >
-                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-              </button>
-            </div>
-          </div>
 
           {/* Телефон и Telegram */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
