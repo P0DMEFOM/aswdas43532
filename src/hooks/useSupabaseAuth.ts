@@ -23,19 +23,28 @@ export function useSupabaseAuth() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    console.log('useSupabaseAuth: Initializing...');
+
     // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('useSupabaseAuth: Got session:', session ? 'yes' : 'no');
       setUser(session?.user ?? null);
       if (session?.user) {
+        console.log('useSupabaseAuth: Fetching profile for user:', session.user.id);
         fetchProfile(session.user.id);
       } else {
+        console.log('useSupabaseAuth: No session, setting loading to false');
         setLoading(false);
       }
+    }).catch(err => {
+      console.error('useSupabaseAuth: Error getting session:', err);
+      setLoading(false);
     });
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('useSupabaseAuth: Auth state changed:', event);
         setUser(session?.user ?? null);
         if (session?.user) {
           await fetchProfile(session.user.id);
@@ -50,21 +59,31 @@ export function useSupabaseAuth() {
   }, []);
 
   const fetchProfile = async (userId: string) => {
+    console.log('fetchProfile: Starting for user:', userId);
     try {
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
+
+      console.log('fetchProfile: Query completed', { hasData: !!data, hasError: !!error });
 
       if (error) {
-        console.error('Error fetching profile:', error);
-      } else {
+        console.error('fetchProfile: Error fetching profile:', error);
+        setProfile(null);
+      } else if (data) {
+        console.log('fetchProfile: Profile found:', data.email);
         setProfile(data);
+      } else {
+        console.warn('fetchProfile: Profile not found for user:', userId);
+        setProfile(null);
       }
     } catch (error) {
-      console.error('Error fetching profile:', error);
+      console.error('fetchProfile: Exception:', error);
+      setProfile(null);
     } finally {
+      console.log('fetchProfile: Setting loading to false');
       setLoading(false);
     }
   };

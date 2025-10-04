@@ -16,10 +16,23 @@ import { ProjectDetail } from './components/projects/ProjectDetail';
 import { Messenger } from './components/messenger/Messenger';
 
 function AppContent() {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, loading, logout } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard');
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
   const [messengerTargetUser, setMessengerTargetUser] = useState<string | null>(null);
+  const [loadingTimeout, setLoadingTimeout] = useState(false);
+
+  // Таймаут для загрузки
+  useEffect(() => {
+    if (loading) {
+      const timer = setTimeout(() => {
+        setLoadingTimeout(true);
+      }, 10000);
+      return () => clearTimeout(timer);
+    } else {
+      setLoadingTimeout(false);
+    }
+  }, [loading]);
 
   // Слушаем события для открытия чата в мессенджере
   useEffect(() => {
@@ -29,7 +42,7 @@ function AppContent() {
     };
 
     window.addEventListener('openMessengerChat', handleOpenMessengerChat as EventListener);
-    
+
     // Проверяем localStorage на наличие запроса открыть чат
     const targetUserId = localStorage.getItem('messenger_open_chat');
     if (targetUserId) {
@@ -47,7 +60,21 @@ function AppContent() {
       <div className="h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Загрузка...</p>
+          <p className="text-gray-600 mb-4">Загрузка...</p>
+          {loadingTimeout && (
+            <div className="mt-4 space-y-2">
+              <p className="text-amber-600 text-sm">Загрузка занимает слишком много времени</p>
+              <button
+                onClick={() => {
+                  logout();
+                  window.location.reload();
+                }}
+                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+              >
+                Выйти и перезагрузить
+              </button>
+            </div>
+          )}
         </div>
       </div>
     );
