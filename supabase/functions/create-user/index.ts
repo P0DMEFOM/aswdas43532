@@ -81,24 +81,24 @@ Deno.serve(async (req: Request) => {
       throw new Error('Failed to create user');
     }
 
-    const { error: profileInsertError } = await supabaseClient
+    // Wait a moment for the trigger to create the profile
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    // Update the profile with additional details
+    const { error: profileUpdateError } = await supabaseClient
       .from('profiles')
-      .insert({
-        id: authData.user.id,
-        email: requestData.email,
-        name: requestData.name,
-        role: requestData.role,
+      .update({
         department: requestData.department || null,
         position: requestData.position || null,
         salary: requestData.salary || null,
         phone: requestData.phone || null,
         telegram: requestData.telegram || null,
         avatar: requestData.avatar || null
-      });
+      })
+      .eq('id', authData.user.id);
 
-    if (profileInsertError) {
-      await supabaseClient.auth.admin.deleteUser(authData.user.id);
-      throw profileInsertError;
+    if (profileUpdateError) {
+      console.error('Failed to update profile details:', profileUpdateError);
     }
 
     return new Response(
