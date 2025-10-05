@@ -12,6 +12,7 @@ interface AuthContextType {
   register: (userData: Omit<Profile, 'id' | 'created_at' | 'updated_at'> & { password: string }) => Promise<boolean>;
   addUser: (userData: Omit<Profile, 'id' | 'created_at' | 'updated_at'> & { password: string }) => Promise<void>;
   updateUser: (id: string, userData: Partial<Profile>) => Promise<void>;
+  updateUserPassword: (userId: string, password: string) => Promise<void>;
   deleteUser: (id: string) => Promise<void>;
   addProject: (projectData: Omit<Project, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
   updateProject: (id: string, projectData: Partial<Project>) => Promise<void>;
@@ -102,13 +103,52 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     await fetchUsers();
   };
 
-  const deleteUser = async (id: string): Promise<void> => {
-    const { error } = await supabase.auth.admin.deleteUser(id);
-    
-    if (error) {
-      throw error;
+  const updateUserPassword = async (userId: string, password: string): Promise<void> => {
+    const { data: { session } } = await supabase.auth.getSession();
+
+    if (!session) {
+      throw new Error('Not authenticated');
     }
-    
+
+    const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/update-user-password`;
+
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${session.access_token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ userId, password })
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to update password');
+    }
+  };
+
+  const deleteUser = async (id: string): Promise<void> => {
+    const { data: { session } } = await supabase.auth.getSession();
+
+    if (!session) {
+      throw new Error('Not authenticated');
+    }
+
+    const apiUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/delete-user/${id}`;
+
+    const response = await fetch(apiUrl, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${session.access_token}`,
+        'Content-Type': 'application/json',
+      }
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || 'Failed to delete user');
+    }
+
     await fetchUsers();
   };
 
@@ -441,6 +481,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     register,
     addUser,
     updateUser,
+    updateUserPassword,
     deleteUser,
     addProject: profile ? addProject : legacyAddProject,
     updateProject: profile ? updateProject : legacyUpdateProject,

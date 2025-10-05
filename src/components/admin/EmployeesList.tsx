@@ -13,6 +13,7 @@ interface EditModalProps {
 }
 
 function EditEmployeeModal({ employee, isOpen, onClose, onSave }: EditModalProps) {
+  const { updateUserPassword } = useAuth();
   const [formData, setFormData] = useState({
     name: employee.name,
     email: employee.email,
@@ -22,7 +23,8 @@ function EditEmployeeModal({ employee, isOpen, onClose, onSave }: EditModalProps
     department: employee.department || '',
     position: employee.position || '',
     salary: employee.salary?.toString() || '',
-    avatar: employee.avatar || ''
+    avatar: employee.avatar || '',
+    newPassword: ''
   });
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(employee.avatar || null);
@@ -76,6 +78,12 @@ function EditEmployeeModal({ employee, isOpen, onClose, onSave }: EditModalProps
       }
 
       await onSave(employee.id, updateData);
+
+      // Update password if provided
+      if (formData.newPassword) {
+        await updateUserPassword(employee.id, formData.newPassword);
+      }
+
       onClose();
     } catch (error: any) {
       alert(error.message || 'Ошибка при сохранении');
@@ -260,6 +268,21 @@ function EditEmployeeModal({ employee, isOpen, onClose, onSave }: EditModalProps
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
             </div>
+          </div>
+
+          {/* Новый пароль */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Новый пароль (оставьте пустым, если не хотите менять)
+            </label>
+            <input
+              type="password"
+              name="newPassword"
+              value={formData.newPassword}
+              onChange={handleChange}
+              placeholder="••••••••"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
           </div>
 
           <div className="flex justify-end space-x-3 pt-4">
