@@ -61,11 +61,18 @@ export function useSupabaseAuth() {
   const fetchProfile = async (userId: string) => {
     console.log('fetchProfile: Starting for user:', userId);
     try {
-      const { data, error } = await supabase
+      // Add timeout to prevent infinite hanging
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Profile fetch timeout')), 10000)
+      );
+
+      const fetchPromise = supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
         .maybeSingle();
+
+      const { data, error } = await Promise.race([fetchPromise, timeoutPromise]) as any;
 
       console.log('fetchProfile: Query completed', { hasData: !!data, hasError: !!error });
 
