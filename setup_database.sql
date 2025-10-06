@@ -73,12 +73,28 @@ CREATE TABLE IF NOT EXISTS messages (
   created_at timestamptz DEFAULT now()
 );
 
+-- Create reports table
+CREATE TABLE IF NOT EXISTS reports (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  title text NOT NULL,
+  report_type text NOT NULL CHECK (report_type IN ('project_summary', 'employee_performance', 'financial', 'time_tracking', 'custom')),
+  description text,
+  created_by uuid NOT NULL REFERENCES profiles(id),
+  project_id uuid REFERENCES projects(id) ON DELETE CASCADE,
+  start_date date,
+  end_date date,
+  data jsonb,
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
 -- Enable RLS
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE projects ENABLE ROW LEVEL SECURITY;
 ALTER TABLE project_members ENABLE ROW LEVEL SECURITY;
 ALTER TABLE project_files ENABLE ROW LEVEL SECURITY;
 ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE reports ENABLE ROW LEVEL SECURITY;
 
 -- Drop existing policies if any
 DROP POLICY IF EXISTS "Users can read own profile" ON profiles;
@@ -314,6 +330,79 @@ CREATE POLICY "Users can update own received messages"
   USING (recipient_id = auth.uid())
   WITH CHECK (recipient_id = auth.uid());
 
+-- Drop existing reports policies
+DROP POLICY IF EXISTS "Users can read own reports" ON reports;
+DROP POLICY IF EXISTS "Admins can read all reports" ON reports;
+DROP POLICY IF EXISTS "Users can create reports" ON reports;
+DROP POLICY IF EXISTS "Users can update own reports" ON reports;
+DROP POLICY IF EXISTS "Users can delete own reports" ON reports;
+
+-- Reports policies
+CREATE POLICY "Users can read own reports"
+  ON reports FOR SELECT
+  TO authenticated
+  USING (
+    created_by = auth.uid() OR
+    project_id IN (
+      SELECT id FROM projects WHERE manager_id = auth.uid()
+    ) OR
+    project_id IN (
+      SELECT project_id FROM project_members WHERE user_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "Admins can read all reports"
+  ON reports FOR SELECT
+  TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE id = auth.uid() AND role = 'admin'
+    )
+  );
+
+CREATE POLICY "Users can create reports"
+  ON reports FOR INSERT
+  TO authenticated
+  WITH CHECK (created_by = auth.uid());
+
+CREATE POLICY "Users can update own reports"
+  ON reports FOR UPDATE
+  TO authenticated
+  USING (created_by = auth.uid())
+  WITH CHECK (created_by = auth.uid());
+
+CREATE POLICY "Admins can update all reports"
+  ON reports FOR UPDATE
+  TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE id = auth.uid() AND role = 'admin'
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE id = auth.uid() AND role = 'admin'
+    )
+  );
+
+CREATE POLICY "Users can delete own reports"
+  ON reports FOR DELETE
+  TO authenticated
+  USING (created_by = auth.uid());
+
+CREATE POLICY "Admins can delete all reports"
+  ON reports FOR DELETE
+  TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM profiles
+      WHERE id = auth.uid() AND role = 'admin'
+    )
+  );
+
 -- Create trigger function for auto-creating profiles
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger
@@ -351,6 +440,9 @@ CREATE INDEX IF NOT EXISTS idx_project_members_user_id ON project_members(user_i
 CREATE INDEX IF NOT EXISTS idx_project_files_project_id ON project_files(project_id);
 CREATE INDEX IF NOT EXISTS idx_messages_sender_id ON messages(sender_id);
 CREATE INDEX IF NOT EXISTS idx_messages_recipient_id ON messages(recipient_id);
+CREATE INDEX IF NOT EXISTS idx_reports_created_by ON reports(created_by);
+CREATE INDEX IF NOT EXISTS idx_reports_project_id ON reports(project_id);
+CREATE INDEX IF NOT EXISTS idx_reports_report_type ON reports(report_type);
 
 -- Success message
 DO $$
